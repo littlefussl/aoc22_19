@@ -1,6 +1,8 @@
-use std::{collections::HashSet};
+use std::{cmp::Ordering, collections::HashSet};
 
-use crate::{blueprint::Blueprint, resource::Resource, state::State};
+use rand::{seq::SliceRandom, thread_rng};
+
+use crate::{blueprint::Blueprint, resource::ResourceType, state::State};
 
 #[derive(Default)]
 pub struct MetaState {
@@ -25,20 +27,22 @@ fn maximum_possible_geodes(state: &State, metastate: &MetaState) -> usize {
     let n = remaining_steps + 1;
 
     let max_possible = (((n + 1) * n) / 2)
-        + (state.robots.get(&Resource::Geode).unwrap_or(&0) * n)
-        + state.resources[&Resource::Geode];
+        + (state.robots[ResourceType::Geode as usize] as usize * n) 
+        + state.resources[ResourceType::Geode as usize] as usize; 
     max_possible
 }
 
 pub fn traverse_depth_first(
     mut state: State,
-    current_max: usize,
+    current_max: u8,
     blueprint: &Blueprint,
     metastate: &mut MetaState,
-) -> Option<usize> {
+) -> Option<u8> {
+    // println!("{:?}", state);
+
     let decisions = blueprint.possible(&state.resources);
 
-    if maximum_possible_geodes(&state, metastate) < current_max {
+    if maximum_possible_geodes(&state, metastate) < current_max as usize {
         metastate.pruned_states += 1;
         return None;
     }
@@ -53,7 +57,7 @@ pub fn traverse_depth_first(
     }
 
     if state.step > metastate.max_steps {
-        let geodes = state.resources[&Resource::Geode];
+        let geodes = state.resources[ResourceType::Geode as usize];
         // // println!("{:?}", geodes);
         // if geodes > current_max {
         //     println!("New Max! {:?}", state);
@@ -66,18 +70,14 @@ pub fn traverse_depth_first(
 
     let mut possible_new_states: Vec<_> = decisions
         .iter()
-        .map(|(res, costs)| {
+        .map(|(robot_type, costs)| {
             let mut new_robots = state.robots.clone();
-            new_robots
-                .entry(*res)
-                .and_modify(|robot| {
-                    *robot += 1;
-                })
-                .or_insert(1);
+            new_robots[*robot_type as usize] += 1;
             let mut new_inventory = state.resources.clone();
-            for (res, cost) in costs {
-                *new_inventory.get_mut(res).unwrap() -= cost;
+            for (res, cost) in new_inventory.iter_mut().zip(costs) {
+                *res -= cost
             }
+            // println!("{:?}, {:?}, {:?}", state.resources, new_inventory, costs);
             State {
                 robots: new_robots,
                 resources: new_inventory,
@@ -87,29 +87,32 @@ pub fn traverse_depth_first(
         .collect();
     possible_new_states.push(state.clone());
 
+    // possible_new_states.shuffle(&mut thread_rng());
     // println!("{:?}", possible_new_states);
 
-    // possible_new_states.sort_by(|lhs, rhs| {
-    //     if lhs.robots.get(&Resource::Geode).unwrap_or(&0)
-    //         > rhs.robots.get(&Resource::Geode).unwrap_or(&0)
-    //     {
-    //         Ordering::Less
-    //     } else if lhs.robots.get(&Resource::Obsidian).unwrap_or(&0)
-    //         > rhs.robots.get(&Resource::Obsidian).unwrap_or(&0)
-    //     {
-    //         Ordering::Less
-    //     }
-    //     else {
-    //         let lhs_ratio = *lhs.robots.get(&Resource::Clay).unwrap_or(&0) as f64 / *lhs.robots.get(&Resource::Ore).unwrap_or(&0) as f64;
-    //         let rhs_ratio = *rhs.robots.get(&Resource::Clay).unwrap_or(&0) as f64 / *rhs.robots.get(&Resource::Ore).unwrap_or(&0) as f64;
-    //         let obsidian_ratio = blueprint.obsidian_ratio();
-    //         (lhs_ratio - obsidian_ratio).abs().total_cmp(&(rhs_ratio - obsidian_ratio).abs())
-    //     }
-    // });
+    possible_new_states.sort_by(|lhs, rhs| {
+        if lhs.robots[ResourceType::Geode as usize] != rhs.robots[ResourceType::Geode as usize] {
+            lhs.robots[ResourceType::Geode as usize].cmp(&rhs.robots[ResourceType::Geode as usize])
+        // } else if lhs.robots[ResourceType::Obsidian as usize]
+        //     != rhs.robots[ResourceType::Obsidian as usize]
+        // {
+        //     lhs.robots[ResourceType::Obsidian as usize]
+        //         .cmp(&rhs.robots[ResourceType::Obsidian as usize])
+        } else {
+            // let lhs_ratio = lhs.robots[ResourceType::Clay as usize] as f64
+            //     / lhs.robots[ResourceType::Ore as usize] as f64;
+            // let rhs_ratio = rhs.robots[ResourceType::Clay as usize] as f64
+            //     / rhs.robots[ResourceType::Ore as usize] as f64;
+            // let obsidian_ratio = blueprint.obsidian_ratio();
+            // (lhs_ratio - obsidian_ratio)
+            //     .abs()
+            //     .total_cmp(&(rhs_ratio - obsidian_ratio).abs())
+            Ordering::Equal
+        }
+    });
 
     // println!("{:?}\n\n", possible_new_states);
 
-    // possible_new_states.shuffle(&mut thread_rng());
 
     let mut new_max = current_max;
     for new_state in possible_new_states {

@@ -2,44 +2,45 @@ use std::collections::HashMap;
 
 use regex::Regex;
 
-use crate::resource::{Inventory, Resource};
+use crate::resource::{Inventory, ResourceType};
 
 #[derive(Debug)]
 struct Recipe {
     costs: Inventory,
-    robot_type: Resource,
+    robot_type: ResourceType,
 }
 
 #[derive(Debug)]
 pub struct Blueprint {
-    pub id: usize,
+    pub id: u8,
     recipes: Vec<Recipe>,
 }
 
 impl Blueprint {
-    pub fn possible(&self, resources: &Inventory) -> Vec<(Resource, Inventory)> {
+    pub fn possible(&self, resources: &Inventory) -> Vec<(ResourceType, Inventory)> {
         self.recipes
             .iter()
             .filter_map(|Recipe { costs, robot_type }| {
                 let new_inventory: Vec<_> = resources
                     .iter()
-                    .map(|(&res, &count)| {
-                        let cost = *costs.get(&res).unwrap_or(&0);
-                        if count >= cost {
-                            Some((res, cost))
-                        } else {
-                            None
-                        }
-                    })
+                    .zip(costs)
+                    .map(|(&res, &cost)| if res >= cost { Some(cost) } else { None })
                     .collect();
 
                 let affordable = new_inventory.iter().all(Option::is_some);
-                affordable.then(|| {
-                    (
-                        *robot_type,
-                        HashMap::from_iter(new_inventory.iter().map(|&x| x.unwrap())),
-                    )
-                })
+
+                if affordable {
+                    let mut x = new_inventory.iter().map(|&x| x.unwrap());
+                    let return_value: Inventory = [
+                        x.next().unwrap(),
+                        x.next().unwrap(),
+                        x.next().unwrap(),
+                        x.next().unwrap(),
+                    ];
+                    Some((*robot_type, return_value))
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -48,9 +49,10 @@ impl Blueprint {
         let obsidian_recipe = self
             .recipes
             .iter()
-            .find(|Recipe { robot_type, .. }| *robot_type == Resource::Obsidian)
+            .find(|Recipe { robot_type, .. }| *robot_type == ResourceType::Obsidian)
             .unwrap();
-        obsidian_recipe.costs[&Resource::Clay] as f64 / obsidian_recipe.costs[&Resource::Ore] as f64
+        obsidian_recipe.costs[ResourceType::Clay as usize] as f64
+            / obsidian_recipe.costs[ResourceType::Ore as usize] as f64
     }
 }
 
@@ -58,7 +60,7 @@ impl From<&str> for Blueprint {
     fn from(input: &str) -> Self {
         // Blueprint 1: Each ore robot costs 3 ore. Each clay robot costs 4 ore. Each obsidian robot costs 3 ore and 10 clay. Each geode robot costs 2 ore and 7 obsidian.
         let re = Regex::new("Blueprint ([0-9]+): Each ore robot costs ([0-9]+) ore. Each clay robot costs ([0-9]+) ore. Each obsidian robot costs ([0-9]+) ore and ([0-9]+) clay. Each geode robot costs ([0-9]+) ore and ([0-9]+) obsidian.").expect("Invalid regex");
-        let captures: Vec<usize> = re
+        let captures: Vec<u8> = re
             .captures(input)
             .expect("Failed to parse with regex")
             .iter()
@@ -67,7 +69,7 @@ impl From<&str> for Blueprint {
                 capture
                     .expect("Missing capture")
                     .as_str()
-                    .parse::<usize>()
+                    .parse::<u8>()
                     .unwrap()
             })
             .collect();
@@ -76,26 +78,20 @@ impl From<&str> for Blueprint {
             id: captures[0],
             recipes: vec![
                 Recipe {
-                    costs: HashMap::from_iter(vec![(Resource::Ore, captures[1])]),
-                    robot_type: Resource::Ore,
+                    costs: [captures[1], 0, 0, 0],
+                    robot_type: ResourceType::Ore,
                 },
                 Recipe {
-                    costs: HashMap::from_iter(vec![(Resource::Ore, captures[2])]),
-                    robot_type: Resource::Clay,
+                    costs: [captures[2], 0, 0, 0],
+                    robot_type: ResourceType::Clay,
                 },
                 Recipe {
-                    costs: HashMap::from_iter(vec![
-                        (Resource::Ore, captures[3]),
-                        (Resource::Clay, captures[4]),
-                    ]),
-                    robot_type: Resource::Obsidian,
+                    costs: [captures[3], captures[4], 0, 0],
+                    robot_type: ResourceType::Obsidian,
                 },
                 Recipe {
-                    costs: HashMap::from_iter(vec![
-                        (Resource::Ore, captures[5]),
-                        (Resource::Obsidian, captures[6]),
-                    ]),
-                    robot_type: Resource::Geode,
+                    costs: [captures[5], 0, captures[6], 0],
+                    robot_type: ResourceType::Geode,
                 },
             ],
         }

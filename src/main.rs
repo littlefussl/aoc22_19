@@ -22,7 +22,7 @@ fn main() {
             "Skipped because duplicate: {}; pruned: {}; full traversals: {}.",
             metastate.duplicated_states, metastate.pruned_states, metastate.full_traversals
         );
-        final_result += result.unwrap() * blueprint.id;
+        final_result += result.unwrap() as usize * blueprint.id as usize;
     }
 
     println!("Final result: {}", final_result);
