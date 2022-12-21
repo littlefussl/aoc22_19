@@ -22,7 +22,7 @@ fn main() {
     let mut final_result: usize = 0;
 
     for line in INPUT.lines() {
-        let mut metastate = MetaState::default();
+        let mut metastate = MetaState::with_max_steps(31);
 
         let blueprint = Blueprint::from(line);
         println!("{:?}", blueprint);

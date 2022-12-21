@@ -1,8 +1,6 @@
-use std::collections::HashSet;
+use std::{cmp::Ordering, collections::HashSet};
 
 use crate::{blueprint::Blueprint, resource::Resource, state::State};
-
-const MAX_STEPS: usize = 23;
 
 #[derive(Default)]
 pub struct MetaState {
@@ -10,10 +8,20 @@ pub struct MetaState {
     pub duplicated_states: usize,
     pub pruned_states: usize,
     pub full_traversals: usize,
+    pub max_steps: usize,
 }
 
-fn maximum_possible_geodes(state: &State) -> usize {
-    let remaining_steps: usize = MAX_STEPS - state.step;
+impl MetaState {
+    pub fn with_max_steps(max_steps: usize) -> Self {
+        Self {
+            max_steps: max_steps,
+            ..Default::default()
+        }
+    }
+}
+
+fn maximum_possible_geodes(state: &State, metastate: &MetaState) -> usize {
+    let remaining_steps: usize = metastate.max_steps - state.step;
     let n = remaining_steps + 1;
 
     let max_possible = (((n + 1) * n) / 2)
@@ -30,7 +38,7 @@ pub fn traverse_depth_first(
 ) -> Option<usize> {
     let decisions = blueprint.possible(&state.resources);
 
-    if maximum_possible_geodes(&state) < current_max {
+    if maximum_possible_geodes(&state, metastate) < current_max {
         metastate.pruned_states += 1;
         return None;
     }
@@ -44,7 +52,7 @@ pub fn traverse_depth_first(
         }
     }
 
-    if state.step > MAX_STEPS {
+    if state.step > metastate.max_steps {
         let geodes = state.resources[&Resource::Geode];
         // // println!("{:?}", geodes);
         // if geodes > current_max {
@@ -78,6 +86,28 @@ pub fn traverse_depth_first(
         })
         .collect();
     possible_new_states.push(state.clone());
+
+    // println!("{:?}", possible_new_states);
+
+    // possible_new_states.sort_by(|lhs, rhs| {
+    //     if lhs.robots.get(&Resource::Geode).unwrap_or(&0)
+    //         > rhs.robots.get(&Resource::Geode).unwrap_or(&0)
+    //     {
+    //         Ordering::Less
+    //     } else if lhs.robots.get(&Resource::Obsidian).unwrap_or(&0)
+    //         > rhs.robots.get(&Resource::Obsidian).unwrap_or(&0)
+    //     {
+    //         Ordering::Less
+    //     }
+    //     else {
+    //         let lhs_ratio = *lhs.robots.get(&Resource::Clay).unwrap_or(&0) as f64 / *lhs.robots.get(&Resource::Ore).unwrap_or(&0) as f64;
+    //         let rhs_ratio = *rhs.robots.get(&Resource::Clay).unwrap_or(&0) as f64 / *rhs.robots.get(&Resource::Ore).unwrap_or(&0) as f64;
+    //         let obsidian_ratio = blueprint.obsidian_ratio();
+    //         (lhs_ratio - obsidian_ratio).abs().total_cmp(&(rhs_ratio - obsidian_ratio).abs())
+    //     }
+    // });
+
+    // println!("{:?}\n\n", possible_new_states);
 
     // possible_new_states.shuffle(&mut thread_rng());
 

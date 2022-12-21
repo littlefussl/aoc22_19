@@ -43,6 +43,15 @@ impl Blueprint {
             })
             .collect()
     }
+
+    pub fn obsidian_ratio(&self) -> f64 {
+        let obsidian_recipe = self
+            .recipes
+            .iter()
+            .find(|Recipe { robot_type, .. }| *robot_type == Resource::Obsidian)
+            .unwrap();
+        obsidian_recipe.costs[&Resource::Clay] as f64 / obsidian_recipe.costs[&Resource::Ore] as f64
+    }
 }
 
 impl From<&str> for Blueprint {
