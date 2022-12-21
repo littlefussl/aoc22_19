@@ -1,18 +1,8 @@
-use std::{
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
-    hash::Hash,
-    sync::{atomic::AtomicUsize, Mutex},
-};
-
 use day19::{
     blueprint::Blueprint,
     max_search::{traverse_depth_first, MetaState},
     state::State,
 };
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-
-use regex::Regex;
 
 const INPUT: &str = include_str!("../input.txt");
 
