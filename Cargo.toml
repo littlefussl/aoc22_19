@@ -9,3 +9,10 @@ edition = "2021"
 regex = "1.7"
 once_cell = "1.16.0"
 rand = "0.8.5"
+
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "simple_benchmark"
+harness = false
